@@ -14,6 +14,11 @@ app.use(express.json());
 // ----------------------------------------------------------------------
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+// Ruta directa para el panel de administración
+app.get("/admin.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "admin.html"));
+});
+
 
 // ----------------------------------------------------------------------
 // 🔥 CONEXIÓN A MONGODB ATLAS
