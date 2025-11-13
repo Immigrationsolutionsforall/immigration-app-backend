@@ -1,0 +1,8 @@
+# IGNORAR node_modules y uploads
+node_modules/
+uploads/
+
+# NO IGNORAR public (muy importante)
+!public/
+!public/admin.html
+
