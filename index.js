@@ -20,16 +20,43 @@ mongoose
 
 // ESQUEMA
 const ClientSchema = new mongoose.Schema({
-  name: String,
+  // Datos básicos del cliente
+  name: String,                // por compatibilidad con lo que ya usabas
+  fullName: String,            // nombre completo desde la app móvil
+  birthDate: String,           // fecha de nacimiento
+  citizenship: String,         // ciudadanía
+  currentAddress: String,      // dirección actual
+
   email: String,
   phone: String,
-  caseNumber: String,
-  processType: String,
-  status: String,
-  lastUpdate: Date,
+
+  // Información del caso
+  caseNumber: String,          // por si usas número de caso interno
+  immigrationStatus: String,   // I-220A, Parole, Residente, etc.
+  processType: String,         // tipo de proceso migratorio
+  status: {
+    type: String,
+    default: 'Perfil recibido',
+  },
+  lastUpdate: {
+    type: Date,
+    default: Date.now,
+  },
+
+  // Documentos que el cliente suba
+  documents: [
+    {
+      name: String,        // nombre del archivo
+      url: String,         // enlace donde estará guardado
+      mimeType: String,    // tipo de archivo (pdf, image/jpg, etc.)
+      uploadedAt: Date,    // fecha de subida
+    },
+  ],
+
+  // Mensajes entre cliente y oficina
   messages: [
     {
-      from: String,
+      from: String,        // 'client' o 'office'
       text: String,
       date: Date,
     },
@@ -37,6 +64,7 @@ const ClientSchema = new mongoose.Schema({
 });
 
 const Client = mongoose.model("Client", ClientSchema);
+
 
 // RUTAS
 app.get("/", (req, res) => {
@@ -63,6 +91,32 @@ app.put("/clients/:id/status", async (req, res) => {
   );
   res.json(client);
 });
+
+// 🔄 Actualizar datos completos de un cliente (nombre, teléfono, status, etc.)
+app.put("/clients/:id", async (req, res) => {
+  try {
+    const updates = {
+      ...req.body,
+      lastUpdate: new Date(),
+    };
+
+    const client = await Client.findByIdAndUpdate(
+      req.params.id,
+      updates,
+      { new: true }
+    );
+
+    if (!client) {
+      return res.status(404).json({ error: "Cliente no encontrado" });
+    }
+
+    res.json(client);
+  } catch (error) {
+    console.error("Error al actualizar cliente:", error);
+    res.status(500).json({ error: "Error interno al actualizar el cliente" });
+  }
+});
+
 
 app.post("/clients/:id/messages", async (req, res) => {
   const client = await Client.findById(req.params.id);
