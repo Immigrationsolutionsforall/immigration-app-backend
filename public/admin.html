@@ -1,189 +1,232 @@
 <!DOCTYPE html>
 <html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <title>Panel de clientes - Immigration Solutions for All</title>
-
-  <style>
-    body {
-      font-family: system-ui, sans-serif;
-      background: #f3f4f6;
-      margin: 0;
-      padding: 24px;
-    }
-
-    h1 {
-      color: #0b3a75;
-      margin-bottom: 8px;
-    }
-
-    .subtitle {
-      color: #4b5563;
-      margin-bottom: 20px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: white;
-      border-radius: 8px;
-      overflow: hidden;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    }
-
-    th, td {
-      padding: 10px 12px;
-      border-bottom: 1px solid #e5e7eb;
-      font-size: 14px;
-    }
-
-    th {
-      background: #0b3a75;
-      color: white;
-      text-align: left;
-    }
-
-    tr:last-child td {
-      border-bottom: none;
-    }
-
-    select {
-      padding: 4px 6px;
-      border-radius: 4px;
-      border: 1px solid #d1d5db;
-      font-size: 13px;
-    }
-
-    .status { font-weight: 600; }
-
-    .updated {
-      font-size: 12px;
-      color: #6b7280;
-    }
-
-    .badge {
-      display: inline-block;
-      padding: 2px 6px;
-      border-radius: 999px;
-      font-size: 11px;
-      background: #e5e7eb;
-      color: #374151;
-    }
-  </style>
-</head>
-
-<body>
-  <h1>Panel de clientes</h1>
-  <div class="subtitle">
-    Aquí puedes ver los perfiles enviados desde la app y actualizar el <strong>estatus</strong> 
-de cada cliente.
-  </div>
-
-  <table>
-    <thead>
-      <tr>
-        <th>Nombre</th>
-        <th>Contacto</th>
-        <th>Proceso</th>
-        <th>Estatus</th>
-        <th>Última actualización</th>
-      </tr>
-    </thead>
-    <tbody id="clients-body">
-      <tr><td colspan="5">Cargando...</td></tr>
-    </tbody>
-  </table>
-
-  <script>
-    const API_URL = window.location.origin;
-
-    const STATUS_OPTIONS = [
-      "Perfil recibido desde la app",
-      "En revisión",
-      "Documentos incompletos",
-      "Pendiente de firma",
-      "Enviada a USCIS",
-      "Respuesta recibida de USCIS",
-      "Aprobado",
-      "Denegado"
-    ];
-
-    function formatDate(str){
-      if (!str) return "-";
-      const d = new Date(str);
-      return d.toLocaleString();
-    }
-
-    async function loadClients() {
-      const tbody = document.getElementById("clients-body");
-
-      try {
-        const res = await fetch(`${API_URL}/clients`);
-        const clients = await res.json();
-
-        if (!clients.length) {
-          tbody.innerHTML = "<tr><td colspan='5'>No hay clientes aún.</td></tr>";
-          return;
-        }
-
-        tbody.innerHTML = "";
-
-        clients.forEach(c => {
-          const tr = document.createElement("tr");
-
-          tr.innerHTML = `
-            <td>
-              <div class="status">${c.fullName || c.name}</div>
-              <div class="updated">Estatus migratorio: ${c.immigrationStatus || "-"}</div>
-            </td>
-
-            <td>
-              <div>${c.email}</div>
-              <div class="updated">${c.phone}</div>
-            </td>
-
-            <td><span class="badge">${c.processType || "-"}</span></td>
-
-            <td>
-              <select data-id="${c._id}">
-                ${STATUS_OPTIONS.map(opt =>
-                  `<option value="${opt}" ${c.status === opt ? "selected" : 
-""}>${opt}</option>`
-                ).join("")}
-              </select>
-            </td>
-
-            <td><div class="updated">${formatDate(c.lastUpdate)}</div></td>
-          `;
-
-          tbody.appendChild(tr);
-        });
-
-        document.querySelectorAll("select[data-id]").forEach(sel => {
-          sel.addEventListener("change", () => {
-            const id = sel.getAttribute("data-id");
-            const value = sel.value;
-            updateStatus(id, value);
-          });
-        });
-
-      } catch {
-        tbody.innerHTML = "<tr><td colspan='5'>Error cargando datos.</td></tr>";
+  <head>
+    <meta charset="UTF-8" />
+    <title>Panel de clientes - Immigration Solutions for All</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        background: #f3f4f6;
+        margin: 0;
+        padding: 24px;
       }
-    }
+      h1 {
+        color: #0b3a75;
+        margin-bottom: 8px;
+      }
+      .subtitle {
+        color: #4b5563;
+        margin-bottom: 20px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      }
+      th,
+      td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #e5e7eb;
+        font-size: 14px;
+        vertical-align: top;
+      }
+      th {
+        background: #0b3a75;
+        color: white;
+        text-align: left;
+      }
+      tr:last-child td {
+        border-bottom: none;
+      }
+      select {
+        padding: 4px 6px;
+        border-radius: 4px;
+        border: 1px solid #d1d5db;
+        font-size: 13px;
+      }
+      .status {
+        font-weight: 600;
+      }
+      .updated {
+        font-size: 12px;
+        color: #6b7280;
+      }
+      .badge {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 999px;
+        font-size: 11px;
+        background: #e5e7eb;
+        color: #374151;
+      }
+      .docs-list a {
+        font-size: 12px;
+        text-decoration: none;
+        color: #0b3a75;
+        margin-right: 4px;
+      }
+      .docs-list a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
 
-    async function updateStatus(id, status) {
-      await fetch(`${API_URL}/clients/${id}/status`, {
-        method: "PUT",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({status})
-      });
+  <body>
+    <h1>Panel de clientes</h1>
+    <div class="subtitle">
+      Aquí puedes ver los perfiles enviados desde la app y actualizar el
+      <strong>estatus</strong> de cada cliente.
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Contacto</th>
+          <th>Proceso</th>
+          <th>Documentos</th>
+          <th>Estatus</th>
+          <th>Última actualización</th>
+        </tr>
+      </thead>
+      <tbody id="clients-body">
+        <tr>
+          <td colspan="6">Cargando clientes...</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <script>
+      // En Render o en local, esto será la URL base del backend
+      const API_URL = window.location.origin;
+
+      const STATUS_OPTIONS = [
+        "Perfil recibido desde la app",
+        "En revisión",
+        "Documentos incompletos",
+        "Pendiente de firma",
+        "Enviada a USCIS",
+        "Respuesta recibida de USCIS",
+        "Aprobado",
+        "Denegado",
+      ];
+
+      function formatDate(dateStr) {
+        if (!dateStr) return "-";
+        const d = new Date(dateStr);
+        return d.toLocaleString();
+      }
+
+      async function loadClients() {
+        const tbody = document.getElementById("clients-body");
+        try {
+          const res = await fetch(`${API_URL}/clients`);
+          const clients = await res.json();
+
+          if (!clients.length) {
+            tbody.innerHTML =
+              "<tr><td colspan='6'>No hay clientes aún.</td></tr>";
+            return;
+          }
+
+          tbody.innerHTML = "";
+
+          clients.forEach((c) => {
+            const tr = document.createElement("tr");
+
+            const docsHtml =
+              c.documents && c.documents.length
+                ? `
+                  <div class="docs-list">
+                    ${c.documents
+                      .map(
+                        (d, idx) =>
+                          `<a href="${API_URL}${d.url}" target="_blank">Doc ${
+                            idx + 1
+                          }</a>`
+                      )
+                      .join(" · ")}
+                  </div>
+                  <div class="updated">${c.documents.length} documento(s)</div>
+                `
+                : `<span class="badge">Sin documentos</span>`;
+
+            tr.innerHTML = `
+              <td>
+                <div class="status">${c.fullName || c.name || "-"}</div>
+                <div class="updated">
+                  Estatus migratorio: ${c.immigrationStatus || "-"}
+                </div>
+              </td>
+              <td>
+                <div>${c.email || "-"}</div>
+                <div class="updated">${c.phone || ""}</div>
+              </td>
+              <td>
+                <span class="badge">${c.processType || "-"}</span>
+              </td>
+              <td>
+                ${docsHtml}
+              </td>
+              <td>
+                <select data-id="${c._id}">
+                  ${STATUS_OPTIONS.map(
+                    (opt) =>
+                      `<option value="${opt}" ${
+                        c.status === opt ? "selected" : ""
+                      }>${opt}</option>`
+                  ).join("")}
+                </select>
+              </td>
+              <td>
+                <div class="updated">${formatDate(c.lastUpdate)}</div>
+              </td>
+            `;
+
+            tbody.appendChild(tr);
+          });
+
+          // Añadir listeners a todos los selects
+          document.querySelectorAll("select[data-id]").forEach((selectEl) => {
+            selectEl.addEventListener("change", () => {
+              const id = selectEl.getAttribute("data-id");
+              const newStatus = selectEl.value;
+              updateStatus(id, newStatus);
+            });
+          });
+        } catch (err) {
+          console.error(err);
+          tbody.innerHTML =
+            "<tr><td colspan='6'>Error cargando clientes.</td></tr>";
+        }
+      }
+
+      async function updateStatus(id, newStatus) {
+        try {
+          const res = await fetch(`${API_URL}/clients/${id}/status`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: newStatus }),
+          });
+
+          if (!res.ok) {
+            alert("Error actualizando el estatus.");
+            return;
+          }
+
+          await loadClients();
+        } catch (err) {
+          console.error(err);
+          alert("Error de conexión al actualizar el estatus.");
+        }
+      }
+
       loadClients();
-    }
-
-    loadClients();
-  </script>
-
-</body>
+    </script>
+  </body>
 </html>
 
