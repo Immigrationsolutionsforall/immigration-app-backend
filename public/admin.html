@@ -1,25 +1,27 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Panel de clientes - Immigration Solutions for All</title>
 
   <style>
     body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-        sans-serif;
+      font-family: system-ui, sans-serif;
       background: #f3f4f6;
       margin: 0;
       padding: 24px;
     }
+
     h1 {
       color: #0b3a75;
       margin-bottom: 8px;
     }
+
     .subtitle {
       color: #4b5563;
       margin-bottom: 20px;
     }
+
     table {
       width: 100%;
       border-collapse: collapse;
@@ -28,17 +30,37 @@
       overflow: hidden;
       box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
+
     th, td {
       padding: 10px 12px;
       border-bottom: 1px solid #e5e7eb;
       font-size: 14px;
-      vertical-align: top;
     }
+
     th {
       background: #0b3a75;
       color: white;
       text-align: left;
     }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    select {
+      padding: 4px 6px;
+      border-radius: 4px;
+      border: 1px solid #d1d5db;
+      font-size: 13px;
+    }
+
+    .status { font-weight: 600; }
+
+    .updated {
+      font-size: 12px;
+      color: #6b7280;
+    }
+
     .badge {
       display: inline-block;
       padding: 2px 6px;
@@ -47,25 +69,14 @@
       background: #e5e7eb;
       color: #374151;
     }
-    .doc-link {
-      font-size: 12px;
-      color: #0b3a75;
-      text-decoration: underline;
-      display: block;
-    }
-    .updated {
-      font-size: 12px;
-      color: #6b7280;
-    }
   </style>
 </head>
 
 <body>
-
   <h1>Panel de clientes</h1>
   <div class="subtitle">
-    Aquí puedes ver los perfiles enviados desde la app y actualizar el 
-    <strong>estatus</strong> de cada cliente.
+    Aquí puedes ver los perfiles enviados desde la app y actualizar el <strong>estatus</strong> 
+de cada cliente.
   </div>
 
   <table>
@@ -74,15 +85,12 @@
         <th>Nombre</th>
         <th>Contacto</th>
         <th>Proceso</th>
-        <th>Documentos</th>
         <th>Estatus</th>
         <th>Última actualización</th>
       </tr>
     </thead>
     <tbody id="clients-body">
-      <tr>
-        <td colspan="6">Cargando clientes...</td>
-      </tr>
+      <tr><td colspan="5">Cargando...</td></tr>
     </tbody>
   </table>
 
@@ -100,20 +108,10 @@
       "Denegado"
     ];
 
-    function formatDate(dateStr) {
-      if (!dateStr) return "-";
-      return new Date(dateStr).toLocaleString();
-    }
-
-    function renderDocuments(docs) {
-      if (!docs || docs.length === 0)
-        return "<span class='updated'>Sin documentos</span>";
-
-      return docs
-        .map(
-          d => `<a class="doc-link" href="${d.url}" target="_blank">${d.name}</a>`
-        )
-        .join("");
+    function formatDate(str){
+      if (!str) return "-";
+      const d = new Date(str);
+      return d.toLocaleString();
     }
 
     async function loadClients() {
@@ -124,8 +122,7 @@
         const clients = await res.json();
 
         if (!clients.length) {
-          tbody.innerHTML =
-            "<tr><td colspan='6'>No hay clientes aún.</td></tr>";
+          tbody.innerHTML = "<tr><td colspan='5'>No hay clientes aún.</td></tr>";
           return;
         }
 
@@ -136,64 +133,52 @@
 
           tr.innerHTML = `
             <td>
-              <div>${c.fullName || c.name || "-"}</div>
+              <div class="status">${c.fullName || c.name}</div>
               <div class="updated">Estatus migratorio: ${c.immigrationStatus || "-"}</div>
             </td>
 
             <td>
-              <div>${c.email || "-"}</div>
-              <div class="updated">${c.phone || ""}</div>
+              <div>${c.email}</div>
+              <div class="updated">${c.phone}</div>
             </td>
 
-            <td>
-              <span class="badge">${c.processType || "-"}</span>
-            </td>
-
-            <td>
-              ${renderDocuments(c.documents)}
-            </td>
+            <td><span class="badge">${c.processType || "-"}</span></td>
 
             <td>
               <select data-id="${c._id}">
-                ${STATUS_OPTIONS.map(opt => 
-                  `<option value="${opt}" ${c.status === opt ? "selected": ""}>${opt}</option>`
+                ${STATUS_OPTIONS.map(opt =>
+                  `<option value="${opt}" ${c.status === opt ? "selected" : 
+""}>${opt}</option>`
                 ).join("")}
               </select>
             </td>
 
-            <td>
-              <div class="updated">${formatDate(c.lastUpdate)}</div>
-            </td>
+            <td><div class="updated">${formatDate(c.lastUpdate)}</div></td>
           `;
 
           tbody.appendChild(tr);
         });
 
-        document.querySelectorAll("select[data-id]").forEach(select => {
-          select.addEventListener("change", () => {
-            updateStatus(select.getAttribute("data-id"), select.value);
+        document.querySelectorAll("select[data-id]").forEach(sel => {
+          sel.addEventListener("change", () => {
+            const id = sel.getAttribute("data-id");
+            const value = sel.value;
+            updateStatus(id, value);
           });
         });
 
-      } catch (err) {
-        console.error(err);
-        tbody.innerHTML =
-          "<tr><td colspan='6'>Error cargando clientes.</td></tr>";
+      } catch {
+        tbody.innerHTML = "<tr><td colspan='5'>Error cargando datos.</td></tr>";
       }
     }
 
-    async function updateStatus(id, newStatus) {
-      try {
-        await fetch(`${API_URL}/clients/${id}/status`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: newStatus })
-        });
-
-        loadClients();
-      } catch (err) {
-        alert("Error actualizando estatus");
-      }
+    async function updateStatus(id, status) {
+      await fetch(`${API_URL}/clients/${id}/status`, {
+        method: "PUT",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({status})
+      });
+      loadClients();
     }
 
     loadClients();
@@ -201,3 +186,4 @@
 
 </body>
 </html>
+
