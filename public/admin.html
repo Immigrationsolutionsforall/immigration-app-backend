@@ -11,14 +11,17 @@
         margin: 0;
         padding: 24px;
       }
+
       h1 {
         color: #0b3a75;
         margin-bottom: 8px;
       }
+
       .subtitle {
         color: #4b5563;
         margin-bottom: 20px;
       }
+
       table {
         width: 100%;
         border-collapse: collapse;
@@ -27,6 +30,7 @@
         overflow: hidden;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
       }
+
       th,
       td {
         padding: 10px 12px;
@@ -34,27 +38,33 @@
         font-size: 14px;
         vertical-align: top;
       }
+
       th {
         background: #0b3a75;
         color: white;
         text-align: left;
       }
+
       tr:last-child td {
         border-bottom: none;
       }
+
       select {
         padding: 4px 6px;
         border-radius: 4px;
         border: 1px solid #d1d5db;
         font-size: 13px;
       }
+
       .status {
         font-weight: 600;
       }
+
       .updated {
         font-size: 12px;
         color: #6b7280;
       }
+
       .badge {
         display: inline-block;
         padding: 2px 6px;
@@ -63,14 +73,28 @@
         background: #e5e7eb;
         color: #374151;
       }
-      .docs-list a {
+
+      .action-btn {
+        padding: 4px 8px;
         font-size: 12px;
-        text-decoration: none;
-        color: #0b3a75;
-        margin-right: 4px;
+        border-radius: 4px;
+        border: none;
+        cursor: pointer;
       }
-      .docs-list a:hover {
-        text-decoration: underline;
+
+      .action-delete {
+        background: #ef4444;
+        color: white;
+      }
+
+      .doc-count {
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .doc-note {
+        font-size: 11px;
+        color: #6b7280;
       }
     </style>
   </head>
@@ -78,8 +102,9 @@
   <body>
     <h1>Panel de clientes</h1>
     <div class="subtitle">
-      Aquí puedes ver los perfiles enviados desde la app y actualizar el
-      <strong>estatus</strong> de cada cliente.
+      Aquí puedes ver los perfiles enviados desde la app, los documentos
+      subidos y actualizar el <strong>estatus</strong> o
+      <strong>eliminar</strong> clientes.
     </div>
 
     <table>
@@ -88,20 +113,20 @@
           <th>Nombre</th>
           <th>Contacto</th>
           <th>Proceso</th>
-          <th>Documentos</th>
           <th>Estatus</th>
+          <th>Documentos</th>
           <th>Última actualización</th>
+          <th>Acciones</th>
         </tr>
       </thead>
       <tbody id="clients-body">
         <tr>
-          <td colspan="6">Cargando clientes...</td>
+          <td colspan="7">Cargando clientes...</td>
         </tr>
       </tbody>
     </table>
 
     <script>
-      // En Render o en local, esto será la URL base del backend
       const API_URL = window.location.origin;
 
       const STATUS_OPTIONS = [
@@ -112,7 +137,7 @@
         "Enviada a USCIS",
         "Respuesta recibida de USCIS",
         "Aprobado",
-        "Denegado",
+        "Denegado"
       ];
 
       function formatDate(dateStr) {
@@ -129,7 +154,7 @@
 
           if (!clients.length) {
             tbody.innerHTML =
-              "<tr><td colspan='6'>No hay clientes aún.</td></tr>";
+              "<tr><td colspan='7'>No hay clientes aún.</td></tr>";
             return;
           }
 
@@ -138,22 +163,7 @@
           clients.forEach((c) => {
             const tr = document.createElement("tr");
 
-            const docsHtml =
-              c.documents && c.documents.length
-                ? `
-                  <div class="docs-list">
-                    ${c.documents
-                      .map(
-                        (d, idx) =>
-                          `<a href="${API_URL}${d.url}" target="_blank">Doc ${
-                            idx + 1
-                          }</a>`
-                      )
-                      .join(" · ")}
-                  </div>
-                  <div class="updated">${c.documents.length} documento(s)</div>
-                `
-                : `<span class="badge">Sin documentos</span>`;
+            const docCount = (c.documents && c.documents.length) || 0;
 
             tr.innerHTML = `
               <td>
@@ -170,9 +180,6 @@
                 <span class="badge">${c.processType || "-"}</span>
               </td>
               <td>
-                ${docsHtml}
-              </td>
-              <td>
                 <select data-id="${c._id}">
                   ${STATUS_OPTIONS.map(
                     (opt) =>
@@ -183,14 +190,25 @@
                 </select>
               </td>
               <td>
+                <div class="doc-count">${docCount} documento(s)</div>
+                <div class="doc-note">
+                  * Los archivos están guardados en el servidor (o en la nube).
+                </div>
+              </td>
+              <td>
                 <div class="updated">${formatDate(c.lastUpdate)}</div>
+              </td>
+              <td>
+                <button class="action-btn action-delete" data-delete-id="${c._id}">
+                  Eliminar
+                </button>
               </td>
             `;
 
             tbody.appendChild(tr);
           });
 
-          // Añadir listeners a todos los selects
+          // cambios de estatus
           document.querySelectorAll("select[data-id]").forEach((selectEl) => {
             selectEl.addEventListener("change", () => {
               const id = selectEl.getAttribute("data-id");
@@ -198,10 +216,20 @@
               updateStatus(id, newStatus);
             });
           });
+
+          // botones de eliminar
+          document
+            .querySelectorAll("button[data-delete-id]")
+            .forEach((btn) => {
+              btn.addEventListener("click", () => {
+                const id = btn.getAttribute("data-delete-id");
+                deleteClient(id);
+              });
+            });
         } catch (err) {
           console.error(err);
           tbody.innerHTML =
-            "<tr><td colspan='6'>Error cargando clientes.</td></tr>";
+            "<tr><td colspan='7'>Error cargando clientes.</td></tr>";
         }
       }
 
@@ -210,7 +238,7 @@
           const res = await fetch(`${API_URL}/clients/${id}/status`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ status: newStatus }),
+            body: JSON.stringify({ status: newStatus })
           });
 
           if (!res.ok) {
@@ -222,6 +250,29 @@
         } catch (err) {
           console.error(err);
           alert("Error de conexión al actualizar el estatus.");
+        }
+      }
+
+      async function deleteClient(id) {
+        const confirmDelete = window.confirm(
+          "¿Seguro que desea eliminar este cliente? Esta acción no se puede deshacer."
+        );
+        if (!confirmDelete) return;
+
+        try {
+          const res = await fetch(`${API_URL}/clients/${id}`, {
+            method: "DELETE"
+          });
+
+          if (!res.ok) {
+            alert("Error eliminando el cliente.");
+            return;
+          }
+
+          await loadClients();
+        } catch (err) {
+          console.error(err);
+          alert("Error de conexión al eliminar el cliente.");
         }
       }
 

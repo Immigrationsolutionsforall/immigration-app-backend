@@ -340,6 +340,24 @@ Puedes ver más detalles en el panel de administración.
   }
 );
 
+// ------------------------------------------------------------
+// 🔥 ELIMINAR CLIENTE
+// ------------------------------------------------------------
+app.delete("/clients/:id", async (req, res) => {
+  try {
+    const client = await Client.findByIdAndDelete(req.params.id);
+
+    if (!client) {
+      return res.status(404).json({ error: "Cliente no encontrado" });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Error en DELETE /clients/:id:", err);
+    res.status(500).json({ error: "Error al eliminar cliente" });
+  }
+});
+
 // ----------------------------------------------------------------------
 // 🔥 INICIAR SERVIDOR
 // ----------------------------------------------------------------------
