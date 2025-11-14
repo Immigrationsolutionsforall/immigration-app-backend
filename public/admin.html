@@ -103,7 +103,7 @@
       <tr>
         <th>Nombre</th>
         <th>Contacto</th>
-        <th>Proceso</th>
+	        <th>Proceso</th>
         <th>Estatus</th>
         <th>Documentos</th>
         <th>Última actualización</th>
@@ -122,15 +122,17 @@
     const API_URL = window.location.origin;
 
     const STATUS_OPTIONS = [
-      "Perfil recibido desde la app",
+      "Caso recibido",
+      "Documnetación Incompleta",
+      "Documnetación Completa",
+      "Proceso Iniciado",     
       "En revisión",
-      "Documentos incompletos",
-      "Pendiente de firma",
-      "Enviada a USCIS",
-      "Respuesta recibida de USCIS",
-      "Aprobado",
-      "Denegado",
-    ];
+      "Pendiente de firma del cliente",
+      "Listo para enivar",
+      "Pendiente de Pago",
+      "Enviada a Inmigración",
+      "Proceso Completado", 
+                          ];
 
     function formatDate(dateStr) {
       if (!dateStr) return "-";
