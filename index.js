@@ -178,6 +178,23 @@ app.get("/clients", async (req, res) => {
 });
 
 // ------------------------------------------------------------
+// 🔥 OBTENER UN CLIENTE POR ID (PARA LA APP)
+// ------------------------------------------------------------
+app.get("/clients/:id", async (req, res) => {
+  try {
+    const client = await Client.findById(req.params.id);
+    if (!client) {
+      return res.status(404).json({ error: "Cliente no encontrado" });
+    }
+    res.json(client);
+  } catch (err) {
+    console.error("❌ Error en GET /clients/:id:", err);
+    res.status(500).json({ error: "Error al obtener cliente" });
+  }
+});
+
+
+// ------------------------------------------------------------
 // 🔥 ACTUALIZAR ESTATUS DEL CLIENTE (ADMIN)
 // ------------------------------------------------------------
 app.put("/clients/:id/status", async (req, res) => {
