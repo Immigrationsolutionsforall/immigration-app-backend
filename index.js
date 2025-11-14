@@ -4,6 +4,7 @@ const mongoose = require("mongoose");
 const path = require("path");
 const multer = require("multer");
 const nodemailer = require("nodemailer");
+const fs = require("fs");
 
 const app = express();
 app.use(cors());
@@ -14,11 +15,6 @@ app.use(express.json());
 // ----------------------------------------------------------------------
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-// Ruta directa para el panel de administración
-app.get("/admin.html", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "admin.html"));
-});
-
 
 // ----------------------------------------------------------------------
 // 🔥 CONEXIÓN A MONGODB ATLAS
@@ -33,7 +29,7 @@ mongoose
   .catch((err) => console.error("❌ Error de conexión a MongoDB:", err));
 
 // ----------------------------------------------------------------------
-// 🔥 ESQUEMA DE CLIENTE (COMPLETO Y ACTUALIZADO)
+// 🔥 ESQUEMA DE CLIENTE
 // ----------------------------------------------------------------------
 const ClientSchema = new mongoose.Schema({
   // Datos personales
@@ -87,13 +83,20 @@ const Client = mongoose.model("Client", ClientSchema);
 // ----------------------------------------------------------------------
 // 🔥 CONFIGURACIÓN DE MULTER (SUBIDA DE DOCUMENTOS)
 // ----------------------------------------------------------------------
+
+// Asegurar que exista la carpeta uploads (en Render NO existe por defecto)
+const uploadsDir = path.join(__dirname, "uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log("📂 Carpeta 'uploads' creada en:", uploadsDir);
+}
+
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, path.join(__dirname, "uploads"));
+    cb(null, uploadsDir);
   },
   filename: function (req, file, cb) {
-    const unique =
-      Date.now() + "-" + Math.round(Math.random() * 1_000_000_000);
+    const unique = Date.now() + "-" + Math.round(Math.random() * 1_000_000_000);
     cb(null, unique + path.extname(file.originalname));
   },
 });
@@ -128,7 +131,7 @@ app.get("/", (req, res) => {
 });
 
 // ------------------------------------------------------------
-// 🔥 EVITAR DUPLICADOS Y GUARDAR PERFIL DEL CLIENTE
+// 🔥 CREAR / ACTUALIZAR PERFIL (EVITAR DUPLICADOS POR EMAIL)
 // ------------------------------------------------------------
 app.post("/clients", async (req, res) => {
   try {
@@ -142,7 +145,7 @@ app.post("/clients", async (req, res) => {
     let client = await Client.findOne({ email });
 
     if (client) {
-      // Actualizar datos
+      // Actualizar datos existentes
       Object.assign(client, req.body);
       client.lastUpdate = new Date();
       await client.save();
@@ -162,15 +165,20 @@ app.post("/clients", async (req, res) => {
 });
 
 // ------------------------------------------------------------
-// 🔥 OBTENER TODOS LOS CLIENTES
+// 🔥 OBTENER TODOS LOS CLIENTES (PANEL ADMIN)
 // ------------------------------------------------------------
 app.get("/clients", async (req, res) => {
-  const clients = await Client.find();
-  res.json(clients);
+  try {
+    const clients = await Client.find();
+    res.json(clients);
+  } catch (err) {
+    console.error("❌ Error en GET /clients:", err);
+    res.status(500).json({ error: "Error al obtener clientes" });
+  }
 });
 
 // ------------------------------------------------------------
-// 🔥 ACTUALIZAR ESTATUS DEL CLIENTE
+// 🔥 ACTUALIZAR ESTATUS DEL CLIENTE (ADMIN)
 // ------------------------------------------------------------
 app.put("/clients/:id/status", async (req, res) => {
   try {
@@ -182,6 +190,10 @@ app.put("/clients/:id/status", async (req, res) => {
       { new: true }
     );
 
+    if (!client) {
+      return res.status(404).json({ error: "Cliente no encontrado" });
+    }
+
     res.json(client);
   } catch (err) {
     console.error("❌ Error en PUT /clients/:id/status:", err);
@@ -190,7 +202,7 @@ app.put("/clients/:id/status", async (req, res) => {
 });
 
 // ------------------------------------------------------------
-// 🔥 ACTUALIZAR PERFIL COMPLETO
+// 🔥 ACTUALIZAR PERFIL COMPLETO POR ID (EDITAR PERFIL)
 // ------------------------------------------------------------
 app.put("/clients/:id", async (req, res) => {
   try {
@@ -212,7 +224,31 @@ app.put("/clients/:id", async (req, res) => {
 });
 
 // ------------------------------------------------------------
-// 🔥 SUBIR DOCUMENTOS + GUARDAR EN BD + ENVIAR EMAIL
+// 🔥 MENSAJES (POR SI LO USAMOS LUEGO)
+// ------------------------------------------------------------
+app.post("/clients/:id/messages", async (req, res) => {
+  try {
+    const client = await Client.findById(req.params.id);
+    if (!client) {
+      return res.status(404).json({ error: "Cliente no encontrado" });
+    }
+
+    client.messages.push({
+      from: req.body.from,
+      text: req.body.text,
+      date: new Date(),
+    });
+
+    await client.save();
+    res.json(client);
+  } catch (err) {
+    console.error("❌ Error en POST /clients/:id/messages:", err);
+    res.status(500).json({ error: "Error al guardar mensaje" });
+  }
+});
+
+// ------------------------------------------------------------
+// 🔥 SUBIR DOCUMENTOS + GUARDAR EN BD + (OPCIONAL) ENVIAR EMAIL
 // ------------------------------------------------------------
 app.post(
   "/clients/:id/documents",
@@ -242,22 +278,19 @@ app.post(
       client.lastUpdate = new Date();
       await client.save();
 
-      // Enviar email si el transporter está configurado
+      // Enviar email si está configurado
       if (transporter) {
         try {
           const clientName = client.fullName || client.name || "Cliente";
           const clientEmail = client.email || "correo-no-especificado";
 
           await transporter.sendMail({
-            // Siempre sale desde tu cuenta de oficina
             from: `Immigration Solutions for All <${
               process.env.MAIL_USER ||
               "immigrationsolutionsforall@gmail.com"
             }>`,
-            // Llega a la oficina
             to: "immigrationsolutionsforall@gmail.com",
-            // Al responder, se responde al correo del cliente
-            replyTo: clientEmail,
+            replyTo: clientEmail, // responde al email del cliente
             subject: `Nuevo documento de ${clientName}`,
             text: `
 El cliente ${clientName} (${clientEmail}) ha subido un nuevo documento.
@@ -266,8 +299,8 @@ Nombre del archivo: ${file.originalname}
 Tipo de archivo: ${file.mimetype}
 Fecha de subida: ${new Date().toLocaleString()}
 
-Puedes ver más detalles del cliente en el panel de administración.
-`.trim(),
+Puedes ver más detalles en el panel de administración.
+            `.trim(),
             attachments: [
               {
                 filename: file.originalname,
